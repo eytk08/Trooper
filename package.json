@@ -1,0 +1,33 @@
+{
+  "name": "trooper",
+  "version": "1.0.0",
+  "description": "Trooper: an automated hospital appointment assistant (chatbot, MySQL, scheduled reminders)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:prod": "npm run db:ensure && node server.js",
+    "dev": "node --watch server.js",
+    "db:init": "node scripts/init-db.js",
+    "db:seed": "node scripts/init-db.js --seed",
+    "db:ensure": "node scripts/init-db.js --seed --if-empty",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^18.0.6",
+    "express": "^5.2.1",
+    "mysql2": "^3.24.5"
+  },
+  "author": "Phoebe Kate",
+  "keywords": [
+    "chatbot",
+    "appointment-scheduling",
+    "automation",
+    "mysql",
+    "express",
+    "bootstrap"
+  ]
+}
