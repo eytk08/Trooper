@@ -1,0 +1,36 @@
+# One command demo:  docker compose up --build
+# Then open http://localhost:3000  (staff dashboard: /admin.html, token: demo_token)
+services:
+  db:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${DB_NAME:-trooper}
+    volumes:
+      - trooper_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpass}
+      DB_NAME: ${DB_NAME:-trooper}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-demo_token}
+      TZ: ${TZ:-Asia/Manila}
+    ports:
+      - "${PORT:-3000}:3000"
+
+volumes:
+  trooper_data:
