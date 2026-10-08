@@ -1,0 +1,17 @@
+:root { --c-brand: #014522; --c-brand-light: #008842; --c-white: #f1f1f1; }
+body { background: #f4faf5; }
+.bg-custom { background-color: #212529; }
+.brand-avatar { width: 38px; height: 38px; border-radius: 50%; }
+.brand-word { color: var(--c-white); font-weight: 800; font-size: 1.4rem; letter-spacing: 2px; text-transform: uppercase; }
+.btn-brand { background-color: var(--c-brand); color: var(--c-white); border: none; }
+.btn-brand:hover { background-color: var(--c-brand-light); color: var(--c-white); }
+.card { border: 0; border-radius: 14px; box-shadow: 0 4px 16px rgba(1, 69, 34, 0.08); }
+.stat { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 4px 16px rgba(1, 69, 34, 0.08); border-top: 4px solid var(--c-brand-light); }
+.stat .n { font-size: 2rem; font-weight: 800; color: var(--c-brand); line-height: 1.1; }
+.stat .l { color: #727272; font-size: 0.85rem; }
+.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.9rem; }
+.bar-row .name { width: 38%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-row .track { flex: 1; background: #e6efe8; border-radius: 6px; height: 14px; overflow: hidden; }
+.bar-row .fill { background: var(--c-brand-light); height: 100%; }
+.bar-row .count { width: 28px; text-align: right; font-weight: 700; }
+.empty { color: #727272; font-style: italic; }

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trooper | Staff dashboard</title>
+  <link rel="icon" href="assets/images/botLogo.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+  <nav class="navbar bg-custom">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+        <img class="brand-avatar" src="assets/images/botLogo.png" alt="">
+        <span class="brand-word">Trooper</span>
+        <span class="badge text-bg-light ms-2">Staff</span>
+      </a>
+      <button id="logoutBtn" class="btn btn-outline-light btn-sm d-none">Sign out</button>
+    </div>
+  </nav>
+
+  <main class="container py-4">
+
+    <!-- Sign in -->
+    <section id="loginCard" class="card mx-auto" style="max-width: 420px;">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-3">Staff sign in</h1>
+        <div id="loginAlert" class="alert alert-danger d-none" role="alert"></div>
+        <form id="loginForm">
+          <label for="token" class="form-label">Staff token</label>
+          <input type="password" id="token" class="form-control mb-3" autocomplete="current-password" required>
+          <button class="btn btn-brand w-100" type="submit">Open dashboard</button>
+        </form>
+        <p class="small text-muted mt-3 mb-0">The token is the <code>ADMIN_TOKEN</code> value in the server's <code>.env</code> file.</p>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="dash" class="d-none">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h1 class="h4 mb-0">Today, <span id="todayDate"></span></h1>
+        <div class="d-flex align-items-center gap-2">
+          <span class="small text-muted" id="updated"></span>
+          <button id="runBtn" class="btn btn-brand btn-sm">Run automation now</button>
+        </div>
+      </div>
+      <div id="dashAlert" class="alert d-none" role="alert"></div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3"><div class="stat"><div class="n" id="sUpcoming">0</div><div class="l">Upcoming appointments</div></div></div>
+        <div class="col-6 col-lg-3"><div class="stat"><div class="n" id="sToday">0</div><div class="l">Today</div></div></div>
+        <div class="col-6 col-lg-3"><div class="stat"><div class="n" id="sCancelled">0</div><div class="l">Cancelled</div></div></div>
+        <div class="col-6 col-lg-3"><div class="stat"><div class="n" id="sTotal">0</div><div class="l">All bookings</div></div></div>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <div class="card h-100"><div class="card-body">
+            <h2 class="h6 text-uppercase">Today's appointments</h2>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Time</th><th>Patient</th><th>Doctor</th><th>Clinic</th><th>Status</th></tr></thead>
+                <tbody id="todayBody"></tbody>
+              </table>
+            </div>
+          </div></div>
+        </div>
+        <div class="col-lg-5">
+          <div class="card h-100"><div class="card-body">
+            <h2 class="h6 text-uppercase">Message automation</h2>
+            <div id="queueBadges" class="mb-3 d-flex flex-wrap gap-2"></div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Type</th><th>To</th><th>Status</th><th>Due</th></tr></thead>
+                <tbody id="msgBody"></tbody>
+              </table>
+            </div>
+          </div></div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card h-100"><div class="card-body">
+            <h2 class="h6 text-uppercase">Upcoming by department</h2>
+            <div id="deptBars"></div>
+          </div></div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card h-100"><div class="card-body">
+            <h2 class="h6 text-uppercase">Busiest doctors, next 7 days</h2>
+            <div id="docBars"></div>
+          </div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/admin.js"></script>
+</body>
+</html>
