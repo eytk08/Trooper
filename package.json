@@ -4,6 +4,9 @@
   "description": "Trooper: an automated hospital appointment assistant (chatbot, MySQL, scheduled reminders)",
   "main": "server.js",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "start": "node server.js",
     "start:prod": "npm run db:ensure && node server.js",
     "dev": "node --watch server.js",
@@ -38,4 +41,5 @@
     "vite",
     "tailwindcss"
   ]
+  
 }
