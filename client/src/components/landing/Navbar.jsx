@@ -40,14 +40,21 @@ export function Navbar({ theme, onToggleTheme }) {
               </a>
             </li>
           ))}
+
+          {/* Staff Dashboard Entry with Subtle Demo Tag */}
           <li>
             <a
               href="/staff/"
-              className="rounded-full bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-slate-800 active:scale-95 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+              title="Reviewer & staff management portal preview"
+              className="group inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100/80 px-3.5 py-1.5 text-xs font-semibold text-slate-800 shadow-sm transition hover:border-teal-500/50 hover:bg-white active:scale-95 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:border-teal-400/50 dark:hover:bg-slate-800"
             >
-              Staff
+              <span>Dashboard</span>
+              <span className="rounded-full bg-teal-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-700 transition group-hover:bg-teal-500/25 dark:bg-teal-400/15 dark:text-teal-300">
+                Demo
+              </span>
             </a>
           </li>
+
           <li>
             <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           </li>
@@ -82,12 +89,16 @@ export function Navbar({ theme, onToggleTheme }) {
               </a>
             </li>
           ))}
-          <li>
+          <li className="pt-1">
             <a
               href="/staff/"
-              className="mt-1 block rounded-lg bg-slate-900 px-3 py-2.5 text-center text-white dark:bg-white dark:text-slate-900"
+              onClick={close}
+              className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-center text-xs font-bold text-slate-800 transition active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             >
-              Staff dashboard
+              <span>Dashboard</span>
+              <span className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-teal-700 dark:bg-teal-400/20 dark:text-teal-300">
+                Demo
+              </span>
             </a>
           </li>
         </ul>

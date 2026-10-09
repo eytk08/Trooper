@@ -43,13 +43,11 @@ export default function App() {
       <Navbar theme={theme} onToggleTheme={toggle} />
       <Chatbot chatState={chatState} isOpen={chatOpen} onToggle={toggleChat} />
       <Problem />
+      <Features />     
       <HowItWorks onStart={startChat} />
-      <Features />
       <Audience />
-      <Services config={chatState.config} status={chatState.configStatus} onRetry={chatState.reloadConfig} />
       <Automation />
       <About />
-      <FAQ />
       <FinalCTA onStart={startChat} />
       <Footer />
     </div>

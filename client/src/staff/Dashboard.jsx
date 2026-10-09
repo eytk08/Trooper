@@ -73,7 +73,7 @@ export function Dashboard({ user, onSignOut, theme, onToggleTheme }) {
           </div>
         </div>
 
-        <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 sm:px-6" aria-label="Dashboard sections">
+        <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto overflow-hidden overflow-y-hidden px-4 sm:px-6" aria-label="Dashboard sections">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}

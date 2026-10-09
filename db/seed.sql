@@ -1,4 +1,4 @@
--- Trooper sample data. Doctors and hours come from the original VMMC project.
+-- Trooper sample data.
 -- All names are fictional.
 
 INSERT INTO department (department_ID, slug, name, name_fil, sort_order) VALUES

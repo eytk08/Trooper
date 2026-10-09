@@ -37,10 +37,10 @@ export function Chatbot({ chatState, isOpen, onToggle }) {
             Trooper &middot; Appointment guide
           </span>
           <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Booking a hospital visit, one simple step at a time.
+            Hospital Appointments,<br></br>One Click at a Time.
           </h1>
           <p className="max-w-xl text-base leading-relaxed text-teal-50/90 sm:text-lg">
-            Trooper is a friendly guide that walks you through your appointment, one question at a time. No forms, no phone queues, no app to download. Just answer, tap, and you are booked in about a minute.
+            Trooper is a friendly guide that walks you through your appointment, one question at a time.<br></br> No forms, no phone queues, no app to download. Just answer, tap, and you are booked in about a minute.
           </p>
 
           <button
@@ -57,7 +57,7 @@ export function Chatbot({ chatState, isOpen, onToggle }) {
 
           <p className="text-xs text-teal-100/70">
             Available in English and Filipino.
-            {hospitalName && <> Live demo using the {hospitalName} as the example hospital.</>}
+           
           </p>
         </div>
 

@@ -1,15 +1,26 @@
-// Tiny in-memory rate limiter (per IP). Fine for a demo. Use a shared store for real hosting.
-function limit({ max, windowMs, message }) {
-  const hits = new Map();
-  return (req, res, next) => {
-    const now = Date.now();
-    const recent = (hits.get(req.ip) || []).filter((time) => now - time < windowMs);
-    if (recent.length >= max) {
-      return res.status(429).json({ error: message || 'Too many requests. Please try again in a few minutes.', code: 'RATE_LIMIT' });
-    }
-    recent.push(now);
-    hits.set(req.ip, recent);
-    next();
-  };
+const rateLimit = require('express-rate-limit');
+
+function limit(options = {}) {
+  const {
+    windowMs = 15 * 60 * 1000,
+    max = 100,
+    message = 'Too many requests, please try again later.',
+    skipSuccessfulRequests = false,
+    skip = () => false,
+    ...rest
+  } = options;
+
+  return rateLimit({
+    windowMs,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests,
+    skip,
+    message: typeof message === 'string' ? { error: message } : message,
+    ...rest
+  });
 }
+
 module.exports = limit;
+module.exports.limit = limit;

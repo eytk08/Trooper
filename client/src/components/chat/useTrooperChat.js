@@ -34,10 +34,12 @@ const DEPT_ICON = {
   ent: '👂', nutrition: '🥗'
 };
 
+
+
 const TEXT = {
   en: {
     menuTitle: 'How can I help you today?',
-    menu: { schedule: `${I.schedule} Schedule Appointment`, manage: `${I.manage} Manage Appointment`, inquiry: `${I.inquiry} Inquiry`, contact: `${I.contact} Contact Hospital`, records: `${I.records} View Records` },
+    menu: { schedule: `${I.schedule} Schedule Appointment`, manage: `${I.manage} Manage Appointment`, inquiry: `${I.inquiry} Inquiry`, contact: `${I.contact} Contact Developer`, records: `${I.records} View Records` },
     notice: [
       `${I.warn} Important Notice:`,
       'The details you give will be checked again at the hospital. Please make sure everything is accurate and complete. A mismatch may forfeit your slot.',
@@ -95,9 +97,9 @@ const TEXT = {
     cannotCancel: `${I.warn} This appointment can no longer be cancelled online.`,
     kept: `${I.ok} Okay, your appointment is unchanged.`,
     inquiryTitle: 'Here are some things I can help you with:',
-    inquiryLinks: { about: `${I.about} Discover more about Trooper`, faq: `${I.faq} View FAQs`, site: `${I.link} Visit the hospital website` },
+    inquiryLinks: { about: `${I.about} Discover more about Trooper`, faq: `${I.faq} View FAQs`, site: `${I.link} Visit the Portfolio website` },
     contact: (h) => ['Thanks for your response.', 'For any inquiries or emergencies, you can contact us here:', `${I.phone} Trunkline: ${h?.trunkline || 'N/A'}`, `${I.emergency} Emergency Direct Line: ${h?.emergencyLine || 'N/A'}`, `${I.email} Email: ${h?.email || 'N/A'}`, 'You may also visit us on Facebook:'],
-    facebook: `${I.link} Visit Facebook Page`,
+    facebook: `${I.link} Visit Portfolio Page`,
     records: ['Thanks for your response.', 'You can find your laboratory records by logging in to the website below:'],
     recordsLink: `${I.link} Visit Laboratory Records Website`,
     loadError: `${I.warn} Trooper cannot reach the hospital system right now. Please try again later.`,
@@ -111,7 +113,7 @@ const TEXT = {
   },
   fil: {
     menuTitle: 'Paano kita matutulungan?',
-    menu: { schedule: `${I.schedule} Mag-iskedyul ng Appointment`, manage: `${I.manage} Ayusin ang Appointment`, inquiry: `${I.inquiry} Magtanong`, contact: `${I.contact} Makipag-ugnayan sa Ospital`, records: `${I.records} Tingnan ang mga Rekord` },
+    menu: { schedule: `${I.schedule} Mag-iskedyul ng Appointment`, manage: `${I.manage} Ayusin ang Appointment`, inquiry: `${I.inquiry} Magtanong`, contact: `${I.contact} Makipag-ugnayan sa Developer`, records: `${I.records} Tingnan ang mga Rekord` },
     notice: [
       `${I.warn} Mahalagang Paalala:`,
       'Muling beberipikahin sa ospital ang impormasyong ibibigay mo. Pakitiyak na tama at kumpleto ang lahat ng detalye. Ang anumang pagkakamali ay maaaring magresulta sa pagkawala ng iyong slot.',
@@ -170,8 +172,8 @@ const TEXT = {
     kept: `${I.ok} Sige, hindi nagbago ang iyong appointment.`,
     inquiryTitle: 'Narito ang ilan sa mga matutulungan ko:',
     inquiryLinks: { about: `${I.about} Alamin ang tungkol sa Trooper`, faq: `${I.faq} Tingnan ang mga FAQ`, site: `${I.link} Bisitahin ang website ng ospital` },
-    contact: (h) => ['Salamat sa iyong tugon.', 'Para sa anumang katanungan o emerhensiya, makipag-ugnayan dito:', `${I.phone} Trunkline: ${h?.trunkline || 'N/A'}`, `${I.emergency} Emergency Direct Line: ${h?.emergencyLine || 'N/A'}`, `${I.email} Email: ${h?.email || 'N/A'}`, 'Maaari mo rin kaming bisitahin sa Facebook:'],
-    facebook: `${I.link} Bisitahin ang Facebook Page`,
+    contact: (h) => ['Salamat sa iyong tugon.', 'Para sa anumang katanungan o emerhensiya, makipag-ugnayan dito:', `${I.phone} Trunkline: ${h?.trunkline || 'N/A'}`, `${I.emergency} Emergency Direct Line: ${h?.emergencyLine || 'N/A'}`, `${I.email} Email: ${h?.email || 'N/A'}`, 'Maaari mo rin kaming bisitahin sa Portfolio:'],
+    facebook: `${I.link} Bisitahin ang Portfolio Page`,
     records: ['Salamat sa iyong tugon.', 'Makikita mo ang iyong laboratory records sa pag-login sa website sa ibaba:'],
     recordsLink: `${I.link} Bisitahin ang Laboratory Records Website`,
     loadError: `${I.warn} Hindi maabot ng Trooper ang sistema ng ospital ngayon. Pakisubukang muli mamaya.`,
@@ -221,6 +223,8 @@ function normalizePhone(input) {
   else if (/^63\d{10}$/.test(digits)) digits = '0' + digits.slice(2);
   return /^09\d{9}$/.test(digits) ? digits : null;
 }
+
+
 
 const emptyBooking = () => ({
   patientClass: null,
