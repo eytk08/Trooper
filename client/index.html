@@ -2,9 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/botLogo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trooper — Hospital Appointment Assistant</title>  </head>
+    <title>Trooper | Automated Appointment Scheduling</title>
+    <meta name="description" content="Trooper is a chatbot that books, reminds and cancels hospital appointments automatically." />
+    <meta name="theme-color" content="#115e59" />
+    <link rel="icon" href="/assets/images/botLogo.png" />
+    <!-- Apply the saved (or OS) theme before first paint so there is no light/dark flash -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('trooper-theme');
+          var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (dark) document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) {}
+      })();
+    </script>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
