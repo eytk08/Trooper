@@ -34,11 +34,14 @@ It started as MedSched, a proposed scheduling system for the Veterans Memorial M
 
 You need Node.js 18 or newer and a running MySQL server (MariaDB 10.5 or newer also works).
 
-1. Install packages: `npm install`
-2. Copy `.env.example` to `.env`. Fill in your MySQL password, an `ADMIN_TOKEN`, and keep `TZ=Asia/Manila` (or use your hospital's time zone).
+1. Install packages: `npm install` and `npm run client:install` (the React front end lives in `client/`)
+2. Copy `.env.example` to `.env`. Fill in your MySQL password, a `STAFF_USERNAME` and `STAFF_PASSWORD`, and keep `TZ=Asia/Manila` (or use your hospital's time zone).
 3. Build the database with sample data: `npm run db:seed` (this resets the tables). Use `npm run db:init` for empty tables.
-4. Start the app: `npm start`, then open http://localhost:3000
-5. Staff dashboard: http://localhost:3000/admin.html, signed in with your `ADMIN_TOKEN`
+4. Build the front end once: `npm run client:build` (writes the landing page into `public/`)
+5. Start the app: `npm start`, then open http://localhost:3000
+6. Staff dashboard: http://localhost:3000/staff/, signed in with your `STAFF_USERNAME` and `STAFF_PASSWORD` (see [docs/STAFF_DASHBOARD.md](docs/STAFF_DASHBOARD.md))
+
+**Working on the front end:** run `npm start` (API on :3000) and, in a second terminal, `npm run client:dev`. Open http://localhost:5173. It reloads as you edit and proxies `/api` to the server. The staff dashboard is at http://localhost:5173/staff/ in dev. The original read-only dashboard (`admin.html`) is plain HTML kept in `client/public/` and is copied into `public/` on every build.
 
 Texts are printed in the server log by default. To send real SMS, replace `send()` in `services/sms.js` with a call to your SMS provider. Nothing else changes.
 
@@ -48,7 +51,7 @@ Texts are printed in the server log by default. To send real SMS, replace `send(
 docker compose up --build
 ```
 
-Open http://localhost:3000. The staff dashboard is at `/admin.html` with the token `demo_token`. The first start builds the database and loads sample data. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for hosting steps and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works.
+Open http://localhost:3000. The staff dashboard is at `/staff/` (login `admin` / `demo_password`). The first start builds the database and loads sample data. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for hosting steps and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works.
 
 ## Why MySQL
 
@@ -115,8 +118,17 @@ How capacity works: a doctor's `max_patients` is the daily limit. A day is split
 | `POST /api/appointments` | Book a slot |
 | `GET /api/appointments/:ref?phone=` | Look up a booking |
 | `POST /api/appointments/:ref/cancel` | Cancel a booking |
-| `GET /api/admin/summary` | Staff dashboard data (needs the `x-admin-token` header) |
+| `POST /api/admin/login` | Staff sign-in, returns a session token (all `/api/admin` routes below need `Authorization: Bearer <token>`) |
+| `GET /api/admin/summary` | Overview numbers (the legacy `x-admin-token` header also works) |
 | `POST /api/admin/run-notifier` | Run the automation job now (staff only) |
+| `GET/POST /api/admin/doctors`, `PUT/DELETE /api/admin/doctors/:id` | Doctors: list, add, edit, delete (deleting is blocked if they have records) |
+| `GET /api/admin/doctors/:id/schedule`, `PUT/DELETE .../schedule/:weekday` | Working days and hours that become bookable slots |
+| `GET/POST /api/admin/appointments`, `GET/PATCH/DELETE /api/admin/appointments/:id` | Appointment records: search, book, edit details, delete |
+| `POST /api/admin/appointments/:id/reschedule`, `.../cancel` | Move or cancel an appointment |
+
+## Case study
+
+A portfolio write-up of the problem, design decisions and engineering is in [docs/CASE_STUDY.md](docs/CASE_STUDY.md).
 
 ## Project structure
 
@@ -129,7 +141,10 @@ middleware/limit.js    small rate limiter
 db/                    schema.sql, seed.sql, queries.sql
 scripts/init-db.js     builds the database (db:init, db:seed, db:ensure)
 test/api.test.js       21 tests, including 10 people booking one slot at once
-public/                chatbot page, staff dashboard, styles, scripts
+client/                React + Vite + Tailwind front end (landing page, chat widget, useTrooperChat hook)
+client/staff/          entry page of the staff dashboard (code in client/src/staff)
+client/public/         static files copied as is on build (legacy dashboard: admin.html, css, js)
+public/                BUILD OUTPUT served by Express (created by npm run client:build, git-ignored)
 docs/                  architecture, deployment, screenshots
 Dockerfile             container image
 docker-compose.yml     app plus MySQL in one command
@@ -145,19 +160,18 @@ The GitHub Actions workflow runs these tests on every push and checks that the D
 * All database queries use placeholders, so SQL injection is blocked
 * Text from patients is shown with `textContent`, so it can never run as HTML
 * Reference codes need the matching mobile number, and wrong guesses look the same as "not found"
-* The staff token is compared in constant time, and the dashboard is off when `ADMIN_TOKEN` is empty
+* Staff passwords and the legacy token are compared in constant time. Staff sessions are signed, expire (default 8 hours) and sign-in is rate limited. Sign-in is off when `STAFF_PASSWORD` is empty, and the legacy dashboard is off when `ADMIN_TOKEN` is empty
 * The rate limiter is in memory and the notifier runs in one process. For real hosting, use a shared store and run the job in one place
 
 ## Known limits
 
 * Appointments hold a patient name and phone number. Use fake data in a demo, and add consent, retention, and access controls before using real patient data
-* The service photos in `public/assets/images` and the bot avatar are from the original project. Check you have the right to use them before publishing
-* No staff login beyond a shared token, no rescheduling (cancel and rebook), and no patient records yet
+* The service photos in `client/src/assets/services` and the bot avatar are from the original project. Check you have the right to use them before publishing
+* Staff sign-in is a single shared username and password from `.env` (a first version, see [docs/STAFF_DASHBOARD.md](docs/STAFF_DASHBOARD.md) for the upgrade path), and there are no full patient records yet
 
 ## Roadmap
 
-* Rescheduling in one step
-* Individual staff accounts instead of one token
+* Individual staff accounts with roles and an audit trail
 * A real SMS provider
 * Waitlist that fills a cancelled slot automatically
 
