@@ -2,6 +2,8 @@
 process.env.NODE_ENV = 'test';
 process.env.DB_NAME = 'trooper_test';
 process.env.ADMIN_TOKEN = 'test_token';
+process.env.STAFF_USERNAME = 'staff';
+process.env.STAFF_PASSWORD = 'test_password';
 process.env.BOOKING_RATE_LIMIT = '1000'; // the limiter itself has its own test below
 require('../config/env');
 
@@ -308,6 +310,141 @@ test('staff dashboard is off when no token is configured', async () => {
   const r = await call('GET', '/api/admin/summary', null, { 'x-admin-token': '' });
   process.env.ADMIN_TOKEN = saved;
   assert.equal(r.status, 503);
+});
+
+// ---------- Staff sign-in and CRUD ----------
+let staff = {}; // { Authorization } once signed in
+let crud = {}; // ids and slots shared by the staff tests below (they run in order)
+
+test('staff sign-in: wrong password is refused, a good login unlocks the API, tampering is caught', async () => {
+  assert.equal((await call('GET', '/api/admin/doctors')).status, 401);
+  assert.equal((await call('POST', '/api/admin/login', { username: 'staff', password: 'nope' })).status, 401);
+  const login = await call('POST', '/api/admin/login', { username: 'staff', password: 'test_password' });
+  assert.equal(login.status, 200);
+  assert.ok(login.data.token && login.data.expiresAt > Date.now());
+  staff = { Authorization: 'Bearer ' + login.data.token };
+  assert.equal((await call('GET', '/api/admin/me', null, staff)).data.user.username, 'staff');
+  assert.equal((await call('GET', '/api/admin/doctors', null, { Authorization: 'Bearer ' + login.data.token.slice(0, -3) + 'abc' })).status, 401);
+  assert.equal((await call('GET', '/api/admin/doctors', null, { 'x-admin-token': 'test_token' })).status, 200, 'the legacy token still works');
+});
+
+test('staff doctors: create, validate, update, deactivate', async () => {
+  const bad = await call('POST', '/api/admin/doctors', { doctorName: 'Dr Test', specialization: 'Test', department: 'surgical' }, staff);
+  assert.equal(bad.status, 400, 'a department with clinics needs a clinic');
+  assert.equal((await call('POST', '/api/admin/doctors', { doctorName: 'Dr Test', specialization: 'Test', department: 'dental', clinic: 'urology' }, staff)).status, 400, 'clinic must belong to the department');
+
+  const made = await call('POST', '/api/admin/doctors', { doctorName: '  Dr   Staff Test ', specialization: 'General Dentistry', department: 'dental' }, staff);
+  assert.equal(made.status, 201);
+  assert.equal(made.data.name, 'Dr Staff Test');
+  assert.equal(made.data.status, 'active');
+  crud.doctorId = made.data.id;
+
+  const upd = await call('PUT', `/api/admin/doctors/${crud.doctorId}`, { doctorName: 'Dr Staff Test', specialization: 'Orthodontics', department: 'dental', status: 'active' }, staff);
+  assert.equal(upd.data.specialization, 'Orthodontics');
+
+  const list = await call('GET', '/api/admin/doctors?q=Staff%20Test&status=active', null, staff);
+  assert.equal(list.data.doctors.length, 1);
+});
+
+test('staff schedules: working hours become bookable slots, bad hours are rejected', async () => {
+  const id = crud.doctorId;
+  // 8:00 to 17:00, one-hour slots, 9 patients a day = exactly 1 patient per slot
+  for (let weekday = 0; weekday <= 6; weekday++) {
+    const r = await call('PUT', `/api/admin/doctors/${id}/schedule/${weekday}`, { start: '08:00', end: '17:00', slotMinutes: 60, maxPatients: 9 }, staff);
+    assert.equal(r.status, 200);
+  }
+  for (const body of [{ start: '09:00', end: '08:00', slotMinutes: 60, maxPatients: 9 }, { start: '08:00', end: '17:00', slotMinutes: 5, maxPatients: 9 }, { start: '08:00', end: '17:00', slotMinutes: 60, maxPatients: 0 }, { start: '8am', end: '17:00', slotMinutes: 60, maxPatients: 9 }]) {
+    assert.equal((await call('PUT', `/api/admin/doctors/${id}/schedule/1`, body, staff)).status, 400);
+  }
+  const sched = await call('GET', `/api/admin/doctors/${id}/schedule`, null, staff);
+  assert.equal(sched.data.schedule.length, 7);
+
+  const open = await call('GET', `/api/doctors/${id}/availability`);
+  assert.ok(open.data.dates.length > 0, 'patients can now see slots for this doctor');
+  assert.equal(open.data.dates[0].slots[0].remaining, 1);
+  crud.slots = open.data.dates[0].slots.map((s) => s.start);
+  crud.date = open.data.dates[0].date;
+
+  // updating a day replaces it (no duplicate row), removing a day removes it
+  await call('PUT', `/api/admin/doctors/${id}/schedule/3`, { start: '09:00', end: '12:00', slotMinutes: 30, maxPatients: 6 }, staff);
+  assert.equal((await call('GET', `/api/admin/doctors/${id}/schedule`, null, staff)).data.schedule.length, 7);
+  assert.equal((await call('DELETE', `/api/admin/doctors/${id}/schedule/3`, null, staff)).status, 200);
+  assert.equal((await call('GET', `/api/admin/doctors/${id}/schedule`, null, staff)).data.schedule.length, 6);
+});
+
+test('staff appointments: create, list, edit details', async () => {
+  const phone = nextPhone();
+  const made = await call('POST', '/api/admin/appointments', person({ doctorId: crud.doctorId, date: crud.date, start: crud.slots[0], phone, patientName: 'Walk In One' }), staff);
+  assert.equal(made.status, 201);
+  crud.ref1 = made.data.reference;
+  const made2 = await call('POST', '/api/admin/appointments', person({ doctorId: crud.doctorId, date: crud.date, start: crud.slots[1], patientName: 'Walk In Two' }), staff);
+  assert.equal(made2.status, 201);
+  crud.ref2 = made2.data.reference;
+
+  const list = await call('GET', `/api/admin/appointments?q=${crud.ref1}`, null, staff);
+  assert.equal(list.data.total, 1);
+  const a = list.data.appointments[0];
+  assert.equal(a.phone, phone, 'staff see the full phone number');
+  assert.equal(a.start, crud.slots[0]);
+  crud.id1 = a.id;
+  crud.id2 = (await call('GET', `/api/admin/appointments?q=${crud.ref2}`, null, staff)).data.appointments[0].id;
+
+  const byDoctor = await call('GET', `/api/admin/appointments?doctorId=${crud.doctorId}&status=confirmed`, null, staff);
+  assert.equal(byDoctor.data.total, 2);
+
+  assert.equal((await call('PATCH', `/api/admin/appointments/${crud.id1}`, { phone: '123' }, staff)).status, 400);
+  assert.equal((await call('PATCH', `/api/admin/appointments/${crud.id1}`, {}, staff)).status, 400);
+  const edit = await call('PATCH', `/api/admin/appointments/${crud.id1}`, { patientName: 'Walk In Renamed', language: 'fil' }, staff);
+  assert.equal(edit.data.patientName, 'Walk In Renamed');
+  assert.equal(edit.data.language, 'fil');
+});
+
+test('staff reschedule: a taken slot is refused and nothing changes; a free slot moves the booking', async () => {
+  // Appointment 2 holds slot 1. Moving it onto slot 0 (taken by appointment 1) must fail.
+  const clash = await call('POST', `/api/admin/appointments/${crud.id2}/reschedule`, { date: crud.date, start: crud.slots[0] }, staff);
+  assert.equal(clash.status, 409);
+  assert.equal(clash.data.code, 'SLOT_UNAVAILABLE');
+  let after = (await call('GET', `/api/admin/appointments/${crud.id2}`, null, staff)).data;
+  assert.equal(after.status, 'confirmed', 'a failed reschedule leaves the booking untouched');
+  assert.equal(after.start, crud.slots[1]);
+
+  // Moving to the slot it already has is a harmless no-op
+  assert.equal((await call('POST', `/api/admin/appointments/${crud.id2}/reschedule`, { date: crud.date, start: crud.slots[1] }, staff)).status, 200);
+
+  // Moving to a free slot works, keeps the reference code, and frees the old slot
+  const moved = await call('POST', `/api/admin/appointments/${crud.id2}/reschedule`, { date: crud.date, start: crud.slots[2] }, staff);
+  assert.equal(moved.status, 200);
+  assert.equal(moved.data.start, crud.slots[2]);
+  assert.equal(moved.data.reference, crud.ref2);
+  const open = await call('GET', `/api/doctors/${crud.doctorId}/availability`);
+  const day = open.data.dates.find((d) => d.date === crud.date);
+  assert.ok(day.slots.some((s) => s.start === crud.slots[1]), 'the old slot is free again');
+  assert.ok(!day.slots.some((s) => s.start === crud.slots[2]), 'the new slot is now taken');
+
+  // Old reminders are skipped, a fresh confirmation is queued
+  const [rows] = await db.query("SELECT type, status FROM notification WHERE fk_appointment_ID = ? ORDER BY notification_ID", [crud.id2]);
+  assert.ok(rows.filter((n) => n.type === 'confirmation').length >= 2);
+});
+
+test('staff cancel and delete: cancelling keeps the record, deleting removes it, doctors with records cannot be deleted', async () => {
+  const cancelled = await call('POST', `/api/admin/appointments/${crud.id1}/cancel`, null, staff);
+  assert.equal(cancelled.status, 200);
+  assert.equal(cancelled.data.status, 'cancelled');
+  assert.equal((await call('POST', `/api/admin/appointments/${crud.id1}/cancel`, null, staff)).data.code, 'ALREADY_CANCELLED');
+  assert.equal((await call('POST', `/api/admin/appointments/${crud.id1}/reschedule`, { date: crud.date, start: crud.slots[4] }, staff)).data.code, 'ALREADY_CANCELLED');
+
+  const blocked = await call('DELETE', `/api/admin/doctors/${crud.doctorId}`, null, staff);
+  assert.equal(blocked.status, 409);
+  assert.equal(blocked.data.code, 'HAS_APPOINTMENTS');
+
+  assert.equal((await call('DELETE', `/api/admin/appointments/${crud.id1}`, null, staff)).status, 200);
+  assert.equal((await call('DELETE', `/api/admin/appointments/${crud.id2}`, null, staff)).status, 200);
+  assert.equal((await call('GET', `/api/admin/appointments/${crud.id1}`, null, staff)).status, 404);
+
+  // No records left, so the doctor (and their schedule) can now be removed
+  assert.equal((await call('DELETE', `/api/admin/doctors/${crud.doctorId}`, null, staff)).status, 200);
+  const [left] = await db.query('SELECT 1 FROM doctor_schedule WHERE fk_doctor_ID = ?', [crud.doctorId]);
+  assert.equal(left.length, 0, 'schedule rows are removed with the doctor');
 });
 
 test('unknown API routes and bad JSON give clean errors', async () => {
