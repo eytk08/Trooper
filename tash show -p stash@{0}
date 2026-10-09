@@ -1,0 +1,25 @@
+[33m9430262[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/frontend-modernization[m[33m, [m[1;31morigin/feature/frontend-modernization[m[33m)[m HEAD@{0}: checkout: moving from main to feature/frontend-modernization
+[33m81ddd52[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{1}: merge feature/frontend-modernization: Merge made by the 'ort' strategy.
+[33m5787e93[m HEAD@{2}: checkout: moving from feature/staff-dashboard to main
+[33m8a51391[m[33m ([m[1;32mfeature/staff-dashboard[m[33m)[m HEAD@{3}: commit: feat(client): complete modular landing components and refined chat flow
+[33m9430262[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/frontend-modernization[m[33m, [m[1;31morigin/feature/frontend-modernization[m[33m)[m HEAD@{4}: checkout: moving from feature/frontend-modernization to feature/staff-dashboard
+[33m9430262[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/frontend-modernization[m[33m, [m[1;31morigin/feature/frontend-modernization[m[33m)[m HEAD@{5}: checkout: moving from feature/frontend-modernization to feature/frontend-modernization
+[33m9430262[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/frontend-modernization[m[33m, [m[1;31morigin/feature/frontend-modernization[m[33m)[m HEAD@{6}: commit: image add
+[33mad2e99d[m HEAD@{7}: commit: refactor(app): integrate landing layout with reactive chat state machine
+[33m44e2d1f[m HEAD@{8}: commit: feat(landing): decompose monolithic view into modular landing components
+[33m6c3192c[m HEAD@{9}: commit: feat(chat): implement multi-turn booking hook and conversational ChatWidget
+[33mebefed1[m HEAD@{10}: commit: chore(assets): add chatbot branding and action button assets
+[33m94d6e4f[m HEAD@{11}: commit: build(client): configure Vite proxy, Tailwind CSS, and core dependencies
+[33m5787e93[m HEAD@{12}: checkout: moving from main to feature/frontend-modernization
+[33m5787e93[m HEAD@{13}: commit: delete sample env
+[33m4fd7706[m HEAD@{14}: commit: ud sample env
+[33m5741406[m HEAD@{15}: commit: chore: restore env.example
+[33md6b282d[m HEAD@{16}: pull origin main: Fast-forward
+[33mb02e95b[m[33m ([m[1;33mtag: [m[1;33mv1.0.0[m[33m)[m HEAD@{17}: commit: ci: add docker setup, health check, test workflow and screenshots
+[33m0e50f7c[m HEAD@{18}: commit: feat(dashboard): add live staff view of bookings and message queue
+[33me016616[m HEAD@{19}: commit: feat(ui): add bilingual chatbot and landing page with automation section
+[33m4aa15c4[m HEAD@{20}: commit: test: cover booking limits, concurrency, cancelling and the notifier
+[33m325c783[m HEAD@{21}: commit: feat(api): add public and staff endpoints, rate limiting and db setup script
+[33ma65556a[m HEAD@{22}: commit: feat(automation): queue confirmations and reminders with a background notifier
+[33m8c81ae2[m HEAD@{23}: commit: feat(scheduling): generate slots, enforce limits and book in a transaction
+[33med9c195[m HEAD@{24}: commit: feat(db): add schema with constraints and sample doctors and schedules
