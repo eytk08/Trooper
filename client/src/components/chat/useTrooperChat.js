@@ -1,150 +1,184 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+// ---------------------------------------------------------------------------
+// Emoji used in the chat. The rules keep the conversation uniform:
+//   1. Every button has exactly one emoji, placed first.
+//   2. The same action always uses the same emoji (a doctor is always a stethoscope).
+//   3. A bot message only gets an emoji when it is a status: done, problem or working.
+//   4. Only long-established emoji, so older phones draw them correctly.
+// Change an emoji here and every button and message follows.
+// ---------------------------------------------------------------------------
+const I = {
+  // status
+  wave: '👋', ok: '✅', no: '❌', warn: '⚠️', wait: '⏳',
+  // main menu
+  schedule: '📅', manage: '🔍', inquiry: '❓', contact: '📞', records: '📄',
+  // who is the patient
+  veteran: '🎖️', beneficiary: '👪', civilian: '🚶',
+  // booking steps
+  newPatient: '🆕', returning: '🔁', clinic: '🏥', doctor: '🩺',
+  date: '📅', time: '🕐',
+  // summary lines
+  patient: '👤', mobile: '📱', ref: '🔖',
+  // controls
+  confirm: '✅', restart: '↩️', retry: '🔄', home: '🏠', cancel: '🚫', keep: '👍',
+  language: '🌐',
+  // information and links
+  link: '🔗', faq: '📖', about: '🤖', phone: '📞', emergency: '🚨', email: '📧'
+};
+
+// One emoji per department (used on the department buttons)
+const DEPT_ICON = {
+  surgical: '💉', specialty: '🏥', pulmonary: '🌬️', obgyne: '🤰',
+  medical: '💊', dental: '🦷', pediatrics: '👶', ophthalmology: '👓',
+  ent: '👂', nutrition: '🥗'
+};
+
 const TEXT = {
   en: {
     menuTitle: 'How can I help you today?',
-    menu: { schedule: 'Schedule Appointment', manage: 'Manage Appointment', inquiry: 'Inquiry', contact: 'Contact Hospital', records: 'View Records' },
+    menu: { schedule: `${I.schedule} Schedule Appointment`, manage: `${I.manage} Manage Appointment`, inquiry: `${I.inquiry} Inquiry`, contact: `${I.contact} Contact Hospital`, records: `${I.records} View Records` },
     notice: [
-      'Important Notice:',
+      `${I.warn} Important Notice:`,
       'The details you give will be checked again at the hospital. Please make sure everything is accurate and complete. A mismatch may forfeit your slot.',
       'Please arrive early. Latecomers cannot be accommodated.'
     ],
-    agree: 'I agree', disagree: 'I do not agree',
+    agree: `${I.ok} I agree`, disagree: `${I.no} I do not agree`,
     who: 'Who are we assisting today?',
-    classes: { veteran: 'Veteran', beneficiary: 'Beneficiary', civilian: 'Civilian' },
+    classes: { veteran: `${I.veteran} Veteran`, beneficiary: `${I.beneficiary} Beneficiary`, civilian: `${I.civilian} Civilian` },
     civilianNote: 'Kindly note that fees may apply for select services.',
     askName: { veteran: "Please provide the Veteran's name or ID:", beneficiary: "Please provide the Beneficiary's name:", civilian: "Please provide the Civilian's name:" },
     namePlaceholder: 'First Name Middle Initial Last Name',
-    badName: "Please enter 2 to 80 characters. Letters, numbers, spaces and . ' - / only.",
+    badName: `${I.warn} Please enter 2 to 80 characters. Letters, numbers, spaces and . ' - / only.`,
     askPhone: 'What mobile number should I send your confirmation and reminder to?',
-    badPhone: 'Please enter a valid mobile number, for example 09171234567.',
+    badPhone: `${I.warn} Please enter a valid mobile number, for example 09171234567.`,
     chooseDept: 'Please select the department you wish to visit:',
     chooseClinic: 'Please select the specific clinic or service:',
     firstTime: 'Is this your first time to consult?',
-    newPatient: 'Yes, this is my first consultation', returning: 'No, I am a returning patient',
-    searching: 'Let me find the earliest open times for you...',
+    newPatient: `${I.newPatient} Yes, this is my first consultation`, returning: `${I.returning} No, I am a returning patient`,
+    searching: `${I.wait} Let me find the earliest open times for you...`,
     autoIntro: 'Here are the earliest open times. I matched you with the doctors who are free soonest:',
-    pickDoctor: 'Choose a specific doctor instead',
-    noSlots: (n, tel) => `Sorry, there are no open times in the next ${n} days for this clinic. Please call the hospital at ${tel}.`,
-    noDoctors: 'Sorry, no doctors are available for that clinic right now.',
+    pickDoctor: `${I.doctor} Choose a specific doctor instead`,
+    noSlots: (n, tel) => `${I.warn} Sorry, there are no open times in the next ${n} days for this clinic. Please call the hospital at ${tel}.`,
+    noDoctors: `${I.warn} Sorry, no doctors are available for that clinic right now.`,
     chooseDoctor: 'Kindly select your referring doctor:',
-    noDoctorSlots: (d) => `${d} has no open times in the next few weeks. Please pick another doctor:`,
+    noDoctorSlots: (d) => `${I.warn} ${d} has no open times in the next few weeks. Please pick another doctor:`,
     chooseDate: (d) => `Kindly select a date for your appointment with ${d}:`,
     chooseTime: 'Please select a time:',
     left: (n) => (n <= 2 ? ` (${n} left)` : ''),
     reviewTitle: 'Please review your appointment:',
-    labels: { patient: 'Patient', mobile: 'Mobile', doctor: 'Doctor', clinic: 'Clinic', when: 'When' },
-    confirm: 'Confirm booking', restart: 'Start over',
-    booking: 'Booking your slot...',
-    slotTaken: 'Sorry, that time was just taken by someone else. Here are the updated times:',
-    alreadyBooked: 'This mobile number already has an appointment with this doctor on that day. Use Manage Appointment to check or cancel it.',
-    success: ['Your appointment is booked!', 'Your reference code:'],
+    labels: { patient: `${I.patient} Patient`, mobile: `${I.mobile} Mobile`, doctor: `${I.doctor} Doctor`, clinic: `${I.clinic} Clinic`, when: `${I.date} When` },
+    confirm: `${I.confirm} Confirm booking`, restart: `${I.restart} Start over`,
+    booking: `${I.wait} Booking your slot...`,
+    slotTaken: `${I.warn} Sorry, that time was just taken by someone else. Here are the updated times:`,
+    alreadyBooked: `${I.warn} This mobile number already has an appointment with this doctor on that day. Use Manage Appointment to check or cancel it.`,
+    success: [`${I.ok} Your appointment is booked!`, 'Your reference code:'],
     afterCode: (phone, r) => [
       'Please keep this code. You need it to check or cancel.',
       `A confirmation text is on its way to ${phone}.`,
       r?.queued ? `You will also get a reminder ${r.hoursBefore} hours before your appointment.` : 'Your appointment is soon, so no separate reminder will be sent.',
       'Please arrive 15 minutes early. You may now close this chat.'
     ],
-    networkError: 'I could not reach the hospital system. Please try again.',
-    serverError: 'Something went wrong on our side. Please try again in a moment.',
-    retry: 'Try again', menuBtn: 'Main menu',
+    networkError: `${I.warn} I could not reach the hospital system. Please try again.`,
+    serverError: `${I.warn} Something went wrong on our side. Please try again in a moment.`,
+    retry: `${I.retry} Try again`, menuBtn: `${I.home} Main menu`,
     askRef: 'Please enter your reference code (it looks like TRP-ABC123):',
-    badRef: 'That does not look like a reference code. It starts with TRP- and has 6 more characters.',
+    badRef: `${I.warn} That does not look like a reference code. It starts with TRP- and has 6 more characters.`,
     askPhoneManage: 'Now enter the mobile number you used for the booking:',
-    notFound: 'No appointment matches that reference code and mobile number.',
-    found: (a, when) => `Reference: ${a.reference}\nStatus: ${a.status === 'confirmed' ? 'Confirmed' : 'Cancelled'}\nPatient: ${a.patientName}\nDoctor: ${a.doctor}\nClinic: ${a.clinic || a.department}\nWhen: ${when}`,
-    cancelIt: 'Cancel this appointment',
-    confirmCancel: 'Are you sure? Your slot will be released for other patients.',
-    yesCancel: 'Yes, cancel it', noKeep: 'No, keep it',
-    cancelled: 'Your appointment is cancelled and the slot was released. A confirmation text is on its way.',
-    alreadyCancelled: 'This appointment is already cancelled.',
-    cannotCancel: 'This appointment can no longer be cancelled online.',
-    kept: 'Okay, your appointment is unchanged.',
+    notFound: `${I.warn} No appointment matches that reference code and mobile number.`,
+    found: (a, when) => `${I.ref} Reference: ${a.reference}\\n${a.status === 'confirmed' ? `${I.ok} Status: Confirmed` : `${I.no} Status: Cancelled`}\\n${I.patient} Patient: ${a.patientName}\\n${I.doctor} Doctor: ${a.doctor}\\n${I.clinic} Clinic: ${a.clinic || a.department}\\n${I.date} When: ${when}`,
+    cancelIt: `${I.cancel} Cancel this appointment`,
+    confirmCancel: `${I.warn} Are you sure? Your slot will be released for other patients.`,
+    yesCancel: `${I.ok} Yes, cancel it`, noKeep: `${I.keep} No, keep it`,
+    cancelled: `${I.ok} Your appointment is cancelled and the slot was released. A confirmation text is on its way.`,
+    alreadyCancelled: `${I.warn} This appointment is already cancelled.`,
+    cannotCancel: `${I.warn} This appointment can no longer be cancelled online.`,
+    kept: `${I.ok} Okay, your appointment is unchanged.`,
     inquiryTitle: 'Here are some things I can help you with:',
-    inquiryLinks: { about: 'Discover more about Trooper', faq: 'View FAQs', site: 'Visit the hospital website' },
-    contact: (h) => ['Thanks for your response.', 'For any inquiries or emergencies, you can contact us here:', `Trunkline: ${h?.trunkline || 'N/A'}`, `Emergency Direct Line: ${h?.emergencyLine || 'N/A'}`, `Email: ${h?.email || 'N/A'}`, 'You may also visit us on Facebook:'],
-    facebook: 'Visit Facebook Page',
+    inquiryLinks: { about: `${I.about} Discover more about Trooper`, faq: `${I.faq} View FAQs`, site: `${I.link} Visit the hospital website` },
+    contact: (h) => ['Thanks for your response.', 'For any inquiries or emergencies, you can contact us here:', `${I.phone} Trunkline: ${h?.trunkline || 'N/A'}`, `${I.emergency} Emergency Direct Line: ${h?.emergencyLine || 'N/A'}`, `${I.email} Email: ${h?.email || 'N/A'}`, 'You may also visit us on Facebook:'],
+    facebook: `${I.link} Visit Facebook Page`,
     records: ['Thanks for your response.', 'You can find your laboratory records by logging in to the website below:'],
-    recordsLink: 'Visit Laboratory Records Website',
-    loadError: 'Trooper cannot reach the hospital system right now. Please try again later.',
+    recordsLink: `${I.link} Visit Laboratory Records Website`,
+    loadError: `${I.warn} Trooper cannot reach the hospital system right now. Please try again later.`,
     noticeConfirm: 'Notice Confirmation',
     declined: 'No problem. You can schedule an appointment any time.',
     socialTitle: 'Social Channels:', portalTitle: 'Access Portal:', optionsTitle: 'Options:', actionsTitle: 'Actions:',
-    rateLimit: 'Too many attempts from this device. Please wait a few minutes and try again.',
+    rateLimit: `${I.warn} Too many attempts from this device. Please wait a few minutes and try again.`,
     slotGone: 'That time is no longer available.',
     placeholders: { name: 'First Name Middle Initial Last Name', phone: '09171234567', ref: 'TRP-ABC123' },
     ui: { subtitle: 'Automated Scheduling Partner', choose: 'Choose an option above to continue', typing: 'Trooper is typing', restart: 'Restart conversation', close: 'Close chat', send: 'Send', respond: 'Type your response...' }
   },
   fil: {
     menuTitle: 'Paano kita matutulungan?',
-    menu: { schedule: 'Mag-iskedyul ng Appointment', manage: 'Ayusin ang Appointment', inquiry: 'Magtanong', contact: 'Makipag-ugnayan sa Ospital', records: 'Tingnan ang mga Rekord' },
+    menu: { schedule: `${I.schedule} Mag-iskedyul ng Appointment`, manage: `${I.manage} Ayusin ang Appointment`, inquiry: `${I.inquiry} Magtanong`, contact: `${I.contact} Makipag-ugnayan sa Ospital`, records: `${I.records} Tingnan ang mga Rekord` },
     notice: [
-      'Mahalagang Paalala:',
+      `${I.warn} Mahalagang Paalala:`,
       'Muling beberipikahin sa ospital ang impormasyong ibibigay mo. Pakitiyak na tama at kumpleto ang lahat ng detalye. Ang anumang pagkakamali ay maaaring magresulta sa pagkawala ng iyong slot.',
       'Inaanyayahan ka naming dumating nang maaga dahil hindi na maaaring tanggapin ang mga mahuhuli.'
     ],
-    agree: 'Sumasang-ayon ako', disagree: 'Hindi ako sumasang-ayon',
+    agree: `${I.ok} Sumasang-ayon ako`, disagree: `${I.no} Hindi ako sumasang-ayon`,
     who: 'Sino ang aming tutulungan ngayon?',
-    classes: { veteran: 'Beterano', beneficiary: 'Benepisyaryo', civilian: 'Sibilian' },
+    classes: { veteran: `${I.veteran} Beterano`, beneficiary: `${I.beneficiary} Benepisyaryo`, civilian: `${I.civilian} Sibilian` },
     civilianNote: 'Paalala: maaaring may bayad ang ilang serbisyo.',
     askName: { veteran: 'Ibigay ang pangalan o ID ng Beterano:', beneficiary: 'Ibigay ang pangalan ng Benepisyaryo:', civilian: 'Ibigay ang pangalan ng Sibilian:' },
     namePlaceholder: 'Pangalan, Gitnang Inisyal, Apelyido',
-    badName: "Maglagay ng 2 hanggang 80 karakter. Letra, numero, espasyo at . ' - / lamang.",
+    badName: `${I.warn} Maglagay ng 2 hanggang 80 karakter. Letra, numero, espasyo at . ' - / lamang.`,
     askPhone: 'Anong mobile number ang pagpapadalhan ko ng kumpirmasyon at paalala?',
-    badPhone: 'Maglagay ng tamang mobile number, halimbawa 09171234567.',
+    badPhone: `${I.warn} Maglagay ng tamang mobile number, halimbawa 09171234567.`,
     chooseDept: 'Paki-pili ang departamento na nais mong bisitahin:',
     chooseClinic: 'Paki-pili ang klinika o serbisyo:',
     firstTime: 'Ito ba ang iyong unang beses na kumonsulta?',
-    newPatient: 'Oo, ito ang aking unang konsultasyon', returning: 'Hindi, ako ay bumabalik na pasyente',
-    searching: 'Hahanapin ko ang pinakamaagang bakanteng oras para sa iyo...',
+    newPatient: `${I.newPatient} Oo, ito ang aking unang konsultasyon`, returning: `${I.returning} Hindi, ako ay bumabalik na pasyente`,
+    searching: `${I.wait} Hahanapin ko ang pinakamaagang bakanteng oras para sa iyo...`,
     autoIntro: 'Narito ang pinakamaagang bakanteng oras. Itinugma kita sa mga doktor na unang magkakaroon ng bakante:',
-    pickDoctor: 'Pumili ng partikular na doktor',
-    noSlots: (n, tel) => `Paumanhin, walang bakanteng oras sa susunod na ${n} araw para sa klinikang ito. Pakitawagan ang ospital sa ${tel}.`,
-    noDoctors: 'Paumanhin, walang magagamit na doktor para sa klinikang iyon ngayon.',
+    pickDoctor: `${I.doctor} Pumili ng partikular na doktor`,
+    noSlots: (n, tel) => `${I.warn} Paumanhin, walang bakanteng oras sa susunod na ${n} araw para sa klinikang ito. Pakitawagan ang ospital sa ${tel}.`,
+    noDoctors: `${I.warn} Paumanhin, walang magagamit na doktor para sa klinikang iyon ngayon.`,
     chooseDoctor: 'Paki-pili ang iyong referring doctor:',
-    noDoctorSlots: (d) => `Walang bakanteng oras si ${d} sa susunod na mga linggo. Pumili ng ibang doktor:`,
+    noDoctorSlots: (d) => `${I.warn} Walang bakanteng oras si ${d} sa susunod na mga linggo. Pumili ng ibang doktor:`,
     chooseDate: (d) => `Paki-pili ang petsa ng appointment mo kay ${d}:`,
     chooseTime: 'Paki-pili ang oras:',
     left: (n) => (n <= 2 ? ` (${n} na lang)` : ''),
     reviewTitle: 'Pakisuri ang iyong appointment:',
-    labels: { patient: 'Pasyente', mobile: 'Mobile', doctor: 'Doktor', clinic: 'Klinika', when: 'Kailan' },
-    confirm: 'Kumpirmahin ang booking', restart: 'Magsimulang muli',
-    booking: 'Ibo-book ang iyong slot...',
-    slotTaken: 'Paumanhin, kakakuha lang ng iba ng oras na iyon. Narito ang mga bagong bakante:',
-    alreadyBooked: 'May appointment na ang mobile number na ito sa doktor na ito sa araw na iyon. Gamitin ang Ayusin ang Appointment para tingnan o kanselahin.',
-    success: ['Naka-book na ang iyong appointment!', 'Ang iyong reference code:'],
+    labels: { patient: `${I.patient} Pasyente`, mobile: `${I.mobile} Mobile`, doctor: `${I.doctor} Doktor`, clinic: `${I.clinic} Klinika`, when: `${I.date} Kailan` },
+    confirm: `${I.confirm} Kumpirmahin ang booking`, restart: `${I.restart} Magsimulang muli`,
+    booking: `${I.wait} Ibo-book ang iyong slot...`,
+    slotTaken: `${I.warn} Paumanhin, kakakuha lang ng iba ng oras na iyon. Narito ang mga bagong bakante:`,
+    alreadyBooked: `${I.warn} May appointment na ang mobile number na ito sa doktor na ito sa araw na iyon. Gamitin ang Ayusin ang Appointment para tingnan o kanselahin.`,
+    success: [`${I.ok} Naka-book na ang iyong appointment!`, 'Ang iyong reference code:'],
     afterCode: (phone, r) => [
       'Itago ang code na ito. Kakailanganin ito para tingnan o kanselahin.',
       `Papunta na ang confirmation text sa ${phone}.`,
       r?.queued ? `Makakatanggap ka rin ng paalala ${r.hoursBefore} oras bago ang appointment.` : 'Malapit na ang appointment mo kaya hindi na magpapadala ng hiwalay na paalala.',
       'Pumunta nang 15 minuto bago ang oras. Maaari mo nang isara ang chat na ito.'
     ],
-    networkError: 'Hindi ko maabot ang sistema ng ospital. Pakisubukang muli.',
-    serverError: 'May problema sa aming panig. Pakisubukang muli mamaya.',
-    retry: 'Subukan muli', menuBtn: 'Pangunahing menu',
+    networkError: `${I.warn} Hindi ko maabot ang sistema ng ospital. Pakisubukang muli.`,
+    serverError: `${I.warn} May problema sa aming panig. Pakisubukang muli mamaya.`,
+    retry: `${I.retry} Subukan muli`, menuBtn: `${I.home} Pangunahing menu`,
     askRef: 'Ilagay ang iyong reference code (hal. TRP-ABC123):',
-    badRef: 'Hindi ito mukhang reference code. Nagsisimula ito sa TRP- at may 6 pang karakter.',
+    badRef: `${I.warn} Hindi ito mukhang reference code. Nagsisimula ito sa TRP- at may 6 pang karakter.`,
     askPhoneManage: 'Ilagay ngayon ang mobile number na ginamit sa booking:',
-    notFound: 'Walang appointment na tumutugma sa reference code at mobile number na iyon.',
-    found: (a, when) => `Reference: ${a.reference}\nStatus: ${a.status === 'confirmed' ? 'Kumpirmado' : 'Kanselado'}\nPasyente: ${a.patientName}\nDoktor: ${a.doctor}\nKlinika: ${a.clinic || a.department}\nKailan: ${when}`,
-    cancelIt: 'Kanselahin ang appointment na ito',
-    confirmCancel: 'Sigurado ka ba? Mabibitawan ang iyong slot para sa ibang pasyente.',
-    yesCancel: 'Oo, kanselahin', noKeep: 'Hindi, ituloy',
-    cancelled: 'Kanselado na ang iyong appointment at nabitawan na ang slot. Papunta na ang confirmation text.',
-    alreadyCancelled: 'Kanselado na ang appointment na ito.',
-    cannotCancel: 'Hindi na maaaring kanselahin online ang appointment na ito.',
-    kept: 'Sige, hindi nagbago ang iyong appointment.',
+    notFound: `${I.warn} Walang appointment na tumutugma sa reference code at mobile number na iyon.`,
+    found: (a, when) => `${I.ref} Reference: ${a.reference}\\n${a.status === 'confirmed' ? `${I.ok} Status: Kumpirmado` : `${I.no} Status: Kanselado`}\\n${I.patient} Pasyente: ${a.patientName}\\n${I.doctor} Doktor: ${a.doctor}\\n${I.clinic} Klinika: ${a.clinic || a.department}\\n${I.date} Kailan: ${when}`,
+    cancelIt: `${I.cancel} Kanselahin ang appointment na ito`,
+    confirmCancel: `${I.warn} Sigurado ka ba? Mabibitawan ang iyong slot para sa ibang pasyente.`,
+    yesCancel: `${I.ok} Oo, kanselahin`, noKeep: `${I.keep} Hindi, ituloy`,
+    cancelled: `${I.ok} Kanselado na ang iyong appointment at nabitawan na ang slot. Papunta na ang confirmation text.`,
+    alreadyCancelled: `${I.warn} Kanselado na ang appointment na ito.`,
+    cannotCancel: `${I.warn} Hindi na maaaring kanselahin online ang appointment na ito.`,
+    kept: `${I.ok} Sige, hindi nagbago ang iyong appointment.`,
     inquiryTitle: 'Narito ang ilan sa mga matutulungan ko:',
-    inquiryLinks: { about: 'Alamin ang tungkol sa Trooper', faq: 'Tingnan ang mga FAQ', site: 'Bisitahin ang website ng ospital' },
-    contact: (h) => ['Salamat sa iyong tugon.', 'Para sa anumang katanungan o emerhensiya, makipag-ugnayan dito:', `Trunkline: ${h?.trunkline || 'N/A'}`, `Emergency Direct Line: ${h?.emergencyLine || 'N/A'}`, `Email: ${h?.email || 'N/A'}`, 'Maaari mo rin kaming bisitahin sa Facebook:'],
-    facebook: 'Bisitahin ang Facebook Page',
+    inquiryLinks: { about: `${I.about} Alamin ang tungkol sa Trooper`, faq: `${I.faq} Tingnan ang mga FAQ`, site: `${I.link} Bisitahin ang website ng ospital` },
+    contact: (h) => ['Salamat sa iyong tugon.', 'Para sa anumang katanungan o emerhensiya, makipag-ugnayan dito:', `${I.phone} Trunkline: ${h?.trunkline || 'N/A'}`, `${I.emergency} Emergency Direct Line: ${h?.emergencyLine || 'N/A'}`, `${I.email} Email: ${h?.email || 'N/A'}`, 'Maaari mo rin kaming bisitahin sa Facebook:'],
+    facebook: `${I.link} Bisitahin ang Facebook Page`,
     records: ['Salamat sa iyong tugon.', 'Makikita mo ang iyong laboratory records sa pag-login sa website sa ibaba:'],
-    recordsLink: 'Bisitahin ang Laboratory Records Website',
-    loadError: 'Hindi maabot ng Trooper ang sistema ng ospital ngayon. Pakisubukang muli mamaya.',
+    recordsLink: `${I.link} Bisitahin ang Laboratory Records Website`,
+    loadError: `${I.warn} Hindi maabot ng Trooper ang sistema ng ospital ngayon. Pakisubukang muli mamaya.`,
     noticeConfirm: 'Kumpirmasyon ng Paalala',
     declined: 'Walang problema. Maaari kang mag-iskedyul anumang oras.',
     socialTitle: 'Mga Social Channel:', portalTitle: 'Portal ng Access:', optionsTitle: 'Mga Opsyon:', actionsTitle: 'Mga Aksyon:',
-    rateLimit: 'Napakaraming subok mula sa device na ito. Maghintay ng ilang minuto at subukang muli.',
+    rateLimit: `${I.warn} Napakaraming subok mula sa device na ito. Maghintay ng ilang minuto at subukang muli.`,
     slotGone: 'Hindi na available ang oras na iyon.',
     placeholders: { name: 'Pangalan, Gitnang Inisyal, Apelyido', phone: '09171234567', ref: 'TRP-ABC123' },
     ui: { subtitle: 'Awtomatikong Katuwang sa Pag-iskedyul', choose: 'Pumili ng opsyon sa itaas para magpatuloy', typing: 'Nagta-type si Trooper', restart: 'Simulan muli ang usapan', close: 'Isara ang chat', send: 'Ipadala', respond: 'I-type ang iyong sagot...' }
@@ -246,6 +280,14 @@ export function useTrooperChat() {
   };
 
   const deptName = (d) => (langRef.current === 'fil' && d?.nameFil ? d.nameFil : d?.name || '');
+  // Button labels are built in one place each, so a button and the patient's echoed reply always match
+  const deptLabel = (d) => `${DEPT_ICON[d?.slug] || I.clinic} ${deptName(d)}`;
+  const clinicLabel = (c) => `${I.clinic} ${deptName(c)}`;
+  const doctorLabel = (d) => `${I.doctor} ${d.name}`;
+  const dateLabel = (ymd) => `${I.date} ${fmtDate(ymd)}`;
+  const timeLabel = (hhmm) => `${I.time} ${fmtTime(hhmm)}`;
+  const slotLabel = (o) => `${I.date} ${fmtDate(o.date)} \u00B7 ${fmtTime(o.start)} \u00B7 ${o.doctorName}`;
+  const langLabel = (code) => `${I.language} ${code === 'fil' ? 'Filipino' : 'English'}`;
 
   // ---------- message plumbing ----------
   const nextId = () => ++idRef.current;
@@ -331,7 +373,7 @@ export function useTrooperChat() {
     }
     goStep('CHOOSE_DEPT');
     await appendBot(tx.chooseDept, depts.map((d) => ({
-      label: deptName(d),
+      label: deptLabel(d),
       action: 'SELECT_DEPT',
       value: d
     })));
@@ -370,7 +412,7 @@ export function useTrooperChat() {
     }
     goStep('PICK_AUTO');
     const options = r.data.options.map((o) => ({
-      label: `${fmtDate(o.date)} · ${fmtTime(o.start)} · ${o.doctorName}`,
+      label: slotLabel(o),
       action: 'PICK_AUTO_SLOT',
       value: o
     }));
@@ -400,7 +442,7 @@ export function useTrooperChat() {
     }
     goStep('CHOOSE_DOCTOR');
     await appendBot(tx.chooseDoctor, r.data.doctors.map((d) => ({
-      label: d.name, action: 'SELECT_DOCTOR', value: d
+      label: doctorLabel(d), action: 'SELECT_DOCTOR', value: d
     })));
   };
 
@@ -421,7 +463,7 @@ export function useTrooperChat() {
     }
     goStep('CHOOSE_DATE');
     await appendBot(tx.chooseDate(doctor.name), r.data.dates.map((d) => ({
-      label: fmtDate(d.date), action: 'SELECT_DATE', value: d
+      label: dateLabel(d.date), action: 'SELECT_DATE', value: d
     })));
   };
 
@@ -561,7 +603,7 @@ export function useTrooperChat() {
       case 'SET_LANG':
         langRef.current = value;
         setLangState(value);
-        appendUser(value === 'fil' ? 'Filipino' : 'English');
+        appendUser(langLabel(value));
         await showMainMenu();
         break;
 
@@ -603,11 +645,11 @@ export function useTrooperChat() {
       case 'SELECT_DEPT':
         b.department = value;
         b.clinic = null;
-        appendUser(deptName(value));
+        appendUser(deptLabel(value));
         if (value.clinics?.length) {
           goStep('CHOOSE_CLINIC');
           await appendBot(tx.chooseClinic, value.clinics.map((c) => ({
-            label: deptName(c), action: 'SELECT_CLINIC', value: c
+            label: clinicLabel(c), action: 'SELECT_CLINIC', value: c
           })));
         } else {
           await askFirstTime();
@@ -616,7 +658,7 @@ export function useTrooperChat() {
 
       case 'SELECT_CLINIC':
         b.clinic = value;
-        appendUser(deptName(value));
+        appendUser(clinicLabel(value));
         await askFirstTime();
         break;
 
@@ -637,23 +679,23 @@ export function useTrooperChat() {
         b.doctor = { id: value.doctorId, name: value.doctorName };
         b.date = value.date;
         b.slot = { start: value.start };
-        appendUser(`${fmtDate(value.date)} · ${fmtTime(value.start)} · ${value.doctorName}`);
+        appendUser(slotLabel(value));
         await reviewBooking();
         break;
 
       case 'SELECT_DOCTOR':
         b.via = 'manual';
         b.doctor = value;
-        appendUser(value.name);
+        appendUser(doctorLabel(value));
         await fetchDoctorSlots(value);
         break;
 
       case 'SELECT_DATE':
         b.date = value.date;
-        appendUser(fmtDate(value.date));
+        appendUser(dateLabel(value.date));
         goStep('CHOOSE_TIME');
         await appendBot(tx.chooseTime, value.slots.map((s) => ({
-          label: `${fmtTime(s.start)}${tx.left(s.remaining)}`,
+          label: `${timeLabel(s.start)}${tx.left(s.remaining)}`,
           action: 'SELECT_TIME',
           value: s
         })));
@@ -661,7 +703,7 @@ export function useTrooperChat() {
 
       case 'SELECT_TIME':
         b.slot = value;
-        appendUser(fmtTime(value.start));
+        appendUser(timeLabel(value.start));
         await reviewBooking();
         break;
 
@@ -767,10 +809,10 @@ export function useTrooperChat() {
     await runFlow(async () => {
       await ensureConfig(); // retries if the first load failed
       await appendBot(
-        'Good day.\nI am Trooper, your automated appointment assistant.\nPlease select your preferred language:',
+        `Hello ${I.wave}\nI am Trooper, your automated appointment assistant.\nPlease select your preferred language:`,
         [
-          { label: 'English', action: 'SET_LANG', value: 'en' },
-          { label: 'Filipino', action: 'SET_LANG', value: 'fil' }
+          { label: langLabel('en'), action: 'SET_LANG', value: 'en' },
+          { label: langLabel('fil'), action: 'SET_LANG', value: 'fil' }
         ],
         300
       );
