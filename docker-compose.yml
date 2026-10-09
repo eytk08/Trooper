@@ -1,5 +1,5 @@
 # One command demo:  docker compose up --build
-# Then open http://localhost:3000  (staff dashboard: /admin.html, token: demo_token)
+# Then open http://localhost:3000  (staff dashboard: /staff/, login: admin / demo_password)
 services:
   db:
     image: mysql:8
@@ -28,6 +28,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-rootpass}
       DB_NAME: ${DB_NAME:-trooper}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-demo_token}
+      STAFF_USERNAME: ${STAFF_USERNAME:-admin}
+      STAFF_PASSWORD: ${STAFF_PASSWORD:-demo_password}
       TZ: ${TZ:-Asia/Manila}
     ports:
       - "${PORT:-3000}:3000"

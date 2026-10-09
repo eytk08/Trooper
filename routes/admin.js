@@ -1,25 +1,32 @@
-const crypto = require('crypto');
 const express = require('express');
 const db = require('../config/db');
 const notifier = require('../services/notifier');
 const limit = require('../middleware/limit');
+const staffAuth = require('../middleware/staffAuth');
 const t = require('../services/time');
 
 const router = express.Router();
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
-const digest = (v) => crypto.createHash('sha256').update(String(v)).digest();
 
-// Staff dashboard login: send the ADMIN_TOKEN from .env in the x-admin-token header.
-router.use(limit({ max: 120, windowMs: 15 * 60 * 1000 }));
-router.use((req, res, next) => {
-  const expected = process.env.ADMIN_TOKEN;
-  if (!expected) return res.status(503).json({ error: 'The staff dashboard is off. Set ADMIN_TOKEN in .env to turn it on.', code: 'ADMIN_OFF' });
-  const given = req.get('x-admin-token') || '';
-  if (!crypto.timingSafeEqual(digest(given), digest(expected))) {
-    return res.status(401).json({ error: 'Wrong staff token.', code: 'BAD_TOKEN' });
+router.use(limit({ max: 600, windowMs: 15 * 60 * 1000 }));
+
+// Staff sign-in. Needs STAFF_USERNAME and STAFF_PASSWORD in .env.
+router.post('/login', limit({ max: 10, windowMs: 15 * 60 * 1000, message: 'Too many sign-in attempts. Please wait a few minutes and try again.' }), (req, res) => {
+  if (!staffAuth.loginEnabled()) {
+    return res.status(503).json({ error: 'Staff sign-in is off. Set STAFF_USERNAME and STAFF_PASSWORD in .env to turn it on.', code: 'LOGIN_OFF' });
   }
-  next();
+  const { username, password } = req.body || {};
+  if (!staffAuth.checkCredentials(username, password)) {
+    return res.status(401).json({ error: 'Wrong username or password.', code: 'BAD_LOGIN' });
+  }
+  const { token, expiresAt } = staffAuth.issueToken(process.env.STAFF_USERNAME);
+  res.json({ token, expiresAt, user: { username: process.env.STAFF_USERNAME } });
 });
+
+// Everything below needs a valid session (or the legacy x-admin-token header)
+router.use(staffAuth.requireStaff);
+
+router.get('/me', (req, res) => res.json({ user: { username: req.staff.username } }));
 
 const maskPhone = (p) => `${p.slice(0, 4)}***${p.slice(-4)}`;
 
@@ -74,5 +81,8 @@ router.get('/summary', wrap(async (req, res) => {
 router.post('/run-notifier', wrap(async (req, res) => {
   res.json(await notifier.processDue());
 }));
+
+// Doctors, schedules and appointments (create, read, update, delete)
+router.use(require('./staff'));
 
 module.exports = router;

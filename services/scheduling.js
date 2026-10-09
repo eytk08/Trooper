@@ -257,21 +257,26 @@ async function lookup(reference, phone) {
   return shape(await findAppointment(reference, phone));
 }
 
+// Shared by the patient cancel and the staff cancel, so both behave the same.
+async function performCancel(conn, a) {
+  if (a.status === 'cancelled') throw new AppError(409, 'ALREADY_CANCELLED', 'This appointment is already cancelled.');
+  const start = a.slot_start.slice(0, 5);
+  if (t.slotDate(a.appointment_date, start) <= new Date()) throw new AppError(409, 'PAST', 'This appointment has already passed.');
+
+  // Releasing the slot is automatic: availability only counts confirmed appointments.
+  await conn.execute("UPDATE appointment SET status = 'cancelled', cancelled_at = CURRENT_TIMESTAMP WHERE appointment_ID = ?", [a.appointment_ID]);
+  // Anything not yet sent for this appointment is no longer needed.
+  await conn.execute("UPDATE notification SET status = 'skipped' WHERE fk_appointment_ID = ? AND status = 'queued'", [a.appointment_ID]);
+  await conn.execute("INSERT INTO notification (fk_appointment_ID, type, message, send_at) VALUES (?, 'cancellation', ?, ?)",
+    [a.appointment_ID, makeMessage(a.language, 'cancellation', { ref: a.reference_code, date: a.appointment_date }), t.dateTimeStr(new Date())]);
+}
+
 async function cancel(reference, phone) {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
     const a = await findAppointment(reference, phone, conn, true);
-    if (a.status === 'cancelled') throw new AppError(409, 'ALREADY_CANCELLED', 'This appointment is already cancelled.');
-    const start = a.slot_start.slice(0, 5);
-    if (t.slotDate(a.appointment_date, start) <= new Date()) throw new AppError(409, 'PAST', 'This appointment has already passed.');
-
-    // Releasing the slot is automatic: availability only counts confirmed appointments.
-    await conn.execute("UPDATE appointment SET status = 'cancelled', cancelled_at = CURRENT_TIMESTAMP WHERE appointment_ID = ?", [a.appointment_ID]);
-    // Anything not yet sent for this appointment is no longer needed.
-    await conn.execute("UPDATE notification SET status = 'skipped' WHERE fk_appointment_ID = ? AND status = 'queued'", [a.appointment_ID]);
-    await conn.execute("INSERT INTO notification (fk_appointment_ID, type, message, send_at) VALUES (?, 'cancellation', ?, ?)",
-      [a.appointment_ID, makeMessage(a.language, 'cancellation', { ref: a.reference_code, date: a.appointment_date }), t.dateTimeStr(new Date())]);
+    await performCancel(conn, a);
     await conn.commit();
     return { ...shape({ ...a, status: 'cancelled' }), canCancel: false };
   } catch (err) {
@@ -282,4 +287,150 @@ async function cancel(reference, phone) {
   }
 }
 
-module.exports = { getCatalog, listDoctors, availability, nextAvailable, book, lookup, cancel, normalizePhone, makeSlots };
+// ---------- Staff tools (used by routes/staff.js) ----------
+// These work on the appointment id, so staff do not need the patient's phone number.
+async function findById(id, conn = db, lock = false) {
+  const [rows] = await conn.query(
+    `SELECT a.*, d.doctorName, dep.name AS department, c.name AS clinic
+       FROM appointment AS a
+       JOIN doctor AS d ON d.doctor_ID = a.fk_doctor_ID
+       JOIN department AS dep ON dep.department_ID = d.fk_department_ID
+       LEFT JOIN clinic AS c ON c.clinic_ID = d.fk_clinic_ID
+      WHERE a.appointment_ID = ? ${lock ? 'FOR UPDATE' : ''}`, [id]);
+  if (!rows.length) throw new AppError(404, 'NOT_FOUND', 'Appointment not found.');
+  return rows[0];
+}
+
+async function cancelById(id) {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    await performCancel(conn, await findById(id, conn, true));
+    await conn.commit();
+    return await findById(id);
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+// Fix typos or change contact details. The date and time are changed with reschedule().
+async function updateDetails(id, input) {
+  const fields = {};
+  if (input.patientName !== undefined) {
+    const name = String(input.patientName || '').trim().replace(/\s+/g, ' ');
+    if (!NAME_RE.test(name)) throw new AppError(400, 'BAD_NAME', 'Please enter the patient name (2 to 80 characters).');
+    fields.patient_name = name;
+  }
+  if (input.patientClass !== undefined) {
+    if (!CLASSES.includes(input.patientClass)) throw new AppError(400, 'BAD_CLASS', 'Please choose veteran, beneficiary or civilian.');
+    fields.patient_class = input.patientClass;
+  }
+  if (input.phone !== undefined) {
+    const phone = normalizePhone(input.phone);
+    if (!phone) throw new AppError(400, 'BAD_PHONE', 'Please enter a valid mobile number, for example 09171234567.');
+    fields.contact_phone = phone;
+  }
+  if (input.language !== undefined) {
+    if (!['en', 'fil'].includes(input.language)) throw new AppError(400, 'BAD_LANGUAGE', 'Language must be en or fil.');
+    fields.language = input.language;
+  }
+  if (input.isNewPatient !== undefined) fields.is_new_patient = input.isNewPatient ? 1 : 0;
+  const columns = Object.keys(fields); // fixed names above, never user input
+  if (!columns.length) throw new AppError(400, 'NOTHING_TO_UPDATE', 'Nothing to update.');
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const a = await findById(id, conn, true);
+    if (fields.contact_phone && fields.contact_phone !== a.contact_phone && a.status === 'confirmed') {
+      const [dup] = await conn.query(
+        "SELECT 1 FROM appointment WHERE contact_phone = ? AND fk_doctor_ID = ? AND appointment_date = ? AND status = 'confirmed' AND appointment_ID <> ? LIMIT 1",
+        [fields.contact_phone, a.fk_doctor_ID, a.appointment_date, id]);
+      if (dup.length) throw new AppError(409, 'ALREADY_BOOKED', 'That number already has an appointment with this doctor on that day.');
+    }
+    await conn.execute(`UPDATE appointment SET ${columns.map((c) => `${c} = ?`).join(', ')} WHERE appointment_ID = ?`, [...columns.map((c) => fields[c]), id]);
+    await conn.commit();
+    return await findById(id);
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+// Move a confirmed appointment to another time (and optionally another doctor).
+// The reference code stays the same. The old slot is released and the new one is checked
+// with the same rules as a new booking, all inside one transaction.
+async function reschedule(id, input) {
+  const date = String(input.date || '');
+  const start = String(input.start || '');
+  if (!t.parseYmd(date)) throw new AppError(400, 'BAD_DATE', 'Please choose a valid date.');
+  if (!/^\d{2}:\d{2}$/.test(start)) throw new AppError(400, 'BAD_TIME', 'Please choose a valid time.');
+
+  const conn = await db.getConnection();
+  try {
+    await conn.query('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
+    await conn.beginTransaction();
+
+    const a = await findById(id, conn, true);
+    if (a.status === 'cancelled') throw new AppError(409, 'ALREADY_CANCELLED', 'This appointment is cancelled. Create a new appointment instead.');
+
+    const hasDoctor = input.doctorId !== undefined && input.doctorId !== null && input.doctorId !== '';
+    const doctorId = hasDoctor ? Number(input.doctorId) : a.fk_doctor_ID;
+    if (!Number.isInteger(doctorId) || doctorId < 1) throw new AppError(400, 'BAD_DOCTOR', 'Please choose a doctor.');
+
+    // Nothing to change
+    if (doctorId === a.fk_doctor_ID && date === a.appointment_date && start === a.slot_start.slice(0, 5)) {
+      await conn.rollback();
+      return a;
+    }
+
+    const [locked] = await conn.query("SELECT doctor_ID FROM doctor WHERE doctor_ID = ? AND status = 'active' FOR UPDATE", [doctorId]);
+    if (!locked.length) throw new AppError(404, 'NO_DOCTOR', 'That doctor is not available.');
+
+    // Free this appointment's own place inside the transaction so it cannot block itself.
+    // If anything below fails, the rollback puts it back exactly as it was.
+    await conn.execute("UPDATE appointment SET status = 'cancelled' WHERE appointment_ID = ?", [id]);
+
+    const open = await availability(doctorId, conn);
+    const day = open.find((d) => d.date === date);
+    if (!day || !day.slots.some((s) => s.start === start)) {
+      throw new AppError(409, 'SLOT_UNAVAILABLE', 'That time is not open. Please pick another one.');
+    }
+    const [dup] = await conn.query(
+      "SELECT 1 FROM appointment WHERE contact_phone = ? AND fk_doctor_ID = ? AND appointment_date = ? AND status = 'confirmed' LIMIT 1",
+      [a.contact_phone, doctorId, date]);
+    if (dup.length) throw new AppError(409, 'ALREADY_BOOKED', 'This patient already has an appointment with that doctor on that day.');
+
+    await conn.execute(
+      "UPDATE appointment SET fk_doctor_ID = ?, appointment_date = ?, slot_start = ?, status = 'confirmed', cancelled_at = NULL WHERE appointment_ID = ?",
+      [doctorId, date, start + ':00', id]);
+
+    // Old reminders no longer match. Queue a fresh confirmation and reminder for the new time.
+    await conn.execute("UPDATE notification SET status = 'skipped' WHERE fk_appointment_ID = ? AND status = 'queued'", [id]);
+    const [[info]] = await conn.query('SELECT doctorName FROM doctor WHERE doctor_ID = ?', [doctorId]);
+    const text = { doctor: info.doctorName, date, start, ref: a.reference_code };
+    const now = new Date();
+    await conn.execute("INSERT INTO notification (fk_appointment_ID, type, message, send_at) VALUES (?, 'confirmation', ?, ?)",
+      [id, makeMessage(a.language, 'confirmation', text), t.dateTimeStr(now)]);
+    const reminderAt = new Date(t.slotDate(date, start).getTime() - reminderHours * 3600 * 1000);
+    if (reminderAt.getTime() > now.getTime() + 5 * 60 * 1000) {
+      await conn.execute("INSERT INTO notification (fk_appointment_ID, type, message, send_at) VALUES (?, 'reminder', ?, ?)",
+        [id, makeMessage(a.language, 'reminder', text), t.dateTimeStr(reminderAt)]);
+    }
+
+    await conn.commit();
+    return await findById(id);
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+module.exports = { getCatalog, listDoctors, availability, nextAvailable, book, lookup, cancel, normalizePhone, makeSlots, findById, cancelById, updateDetails, reschedule };
