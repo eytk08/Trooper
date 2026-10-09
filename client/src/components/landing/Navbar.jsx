@@ -19,7 +19,7 @@ export function Navbar({ theme, onToggleTheme }) {
   const close = () => setMenuOpen(false);
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md transition-colors duration-200 dark:border-slate-800 dark:bg-slate-950/95">
+    <nav className="sticky top-0 z-40 border-b border-slate-200 bg-teal-200 backdrop-blur-md transition-colors duration-200 dark:border-slate-800 dark:bg-slate-950/95">
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Brand */}
         <a className="group flex items-center gap-3 no-underline" href="#page-top" onClick={close}>

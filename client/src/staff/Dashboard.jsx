@@ -14,7 +14,7 @@ const TABS = [
   { id: 'doctors', label: 'Doctors & hours', icon: Stethoscope },
 ];
 
-export function Dashboard({ user, onSignOut, theme, onToggleTheme }) {
+export default function Dashboard({ user, onSignOut, theme, onToggleTheme }) {
   const [tab, setTab] = useState(() => {
     const fromUrl = window.location.hash.slice(1);
     return TABS.some((t) => t.id === fromUrl) ? fromUrl : 'overview';

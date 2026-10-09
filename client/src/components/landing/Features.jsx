@@ -31,7 +31,7 @@ export function Features() {
           {FEATURES.map(({ icon: Icon, title, text }) => (
             <div
               key={title}
-              className="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 transition duration-200 hover:border-slate-300 hover:bg-white hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-slate-700 dark:hover:bg-slate-900"
+              className="rounded-2xl border border-slate-200 bg-emerald-100 p-6 transition duration-200 hover:border-slate-300 hover:bg-white hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-slate-700 dark:hover:bg-slate-900"
             >
               <Icon className="mb-3 h-7 w-7 text-teal-600 dark:text-teal-400" aria-hidden="true" />
               <h3 className="mb-2 text-base font-bold text-slate-900 sm:text-lg dark:text-white">{title}</h3>
