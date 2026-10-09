@@ -1,4 +1,14 @@
-# Trooper container image
+# Trooper container image (two stages: build the React client, then run the Node server)
+
+# --- Stage 1: build the client. Vite writes to ../public, which is /public in this stage ---
+FROM node:20-alpine AS client
+WORKDIR /client
+COPY client/package*.json ./
+RUN npm ci
+COPY client/ ./
+RUN npm run build
+
+# --- Stage 2: the server ---
 FROM node:20-alpine
 
 WORKDIR /app
@@ -8,6 +18,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY --chown=node:node . .
+# The built landing page + staff dashboard (replaces anything copied from the host)
+COPY --from=client --chown=node:node /public ./public
 
 ENV NODE_ENV=production
 ENV PORT=3000

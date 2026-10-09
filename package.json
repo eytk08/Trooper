@@ -10,7 +10,11 @@
     "db:init": "node scripts/init-db.js",
     "db:seed": "node scripts/init-db.js --seed",
     "db:ensure": "node scripts/init-db.js --seed --if-empty",
-    "test": "node --test"
+    "test": "node --test",
+    "client:install": "npm --prefix client ci",
+    "client:dev": "npm --prefix client run dev",
+    "client:build": "npm --prefix client run build",
+    "build": "npm run client:install && npm run client:build"
   },
   "engines": {
     "node": ">=18"
@@ -28,6 +32,8 @@
     "automation",
     "mysql",
     "express",
-    "bootstrap"
+    "react",
+    "vite",
+    "tailwindcss"
   ]
 }
