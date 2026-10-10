@@ -3,22 +3,20 @@
   "version": "1.0.0",
   "description": "Trooper: an automated hospital appointment assistant (chatbot, MySQL, scheduled reminders)",
   "main": "server.js",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "start": "node server.js",
-    "start:prod": "npm run db:ensure && node server.js",
-    "dev": "node --watch server.js",
-    "db:init": "node scripts/init-db.js",
-    "db:seed": "node scripts/init-db.js --seed",
-    "db:ensure": "node scripts/init-db.js --seed --if-empty",
-    "test": "node --test",
-    "client:install": "npm --prefix client ci",
-    "client:dev": "npm --prefix client run dev",
-    "client:build": "npm --prefix client run build",
-    "build": "npm run client:install && npm run client:build"
-  },
+"scripts": {
+  "dev": "node --watch server.js",
+  "start": "node server.js",
+  "start:prod": "npm run db:ensure && node server.js",
+  "build": "npm run client:install && npm run client:build",
+  "client:install": "npm --prefix client install --include=dev",
+  "client:dev": "npm --prefix client run dev",
+  "client:build": "npm --prefix client run build",
+  "preview": "npm --prefix client run preview",
+  "db:init": "node scripts/init-db.js",
+  "db:seed": "node scripts/init-db.js --seed",
+  "db:ensure": "node scripts/init-db.js --seed --if-empty",
+  "test": "node --test"
+},
   "engines": {
     "node": ">=18"
   },
