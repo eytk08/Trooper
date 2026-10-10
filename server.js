@@ -31,7 +31,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // keep false for local development over HTTP
+      secure: process.env.NODE_ENV === 'production', // HTTPS on hosted deployments; HTTP locally
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000 // 1 day
     }
