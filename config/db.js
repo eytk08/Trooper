@@ -9,8 +9,13 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || 'trooper',
   waitForConnections: true,
   connectionLimit: 10,
-  ssl: process.env.DB_SSL === 'true' ? { minVersion: 'TLSv1.2' } : undefined, // set DB_SSL=true for hosted databases that require TLS
-  dateStrings: true // DATE, TIME and DATETIME come back as text, so no timezone surprises
+ssl: process.env.DB_SSL === 'true'
+  ? {
+      minVersion: 'TLSv1.2',
+      ca: process.env.DB_SSL_CA,
+      rejectUnauthorized: true
+    }
+  : undefined,  dateStrings: true // DATE, TIME and DATETIME come back as text, so no timezone surprises
 });
 
 module.exports = pool.promise();
