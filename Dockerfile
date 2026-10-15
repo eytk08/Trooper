@@ -1,7 +1,7 @@
 # Trooper container image (two stages: build the React client, then run the Node server)
 
 # --- Stage 1: build the client. Vite writes to ../public, which is /public in this stage ---
-FROM node:20-alpine AS client
+FROM node:25-alpine AS client
 WORKDIR /client
 COPY client/package*.json ./
 RUN npm ci
@@ -9,7 +9,7 @@ COPY client/ ./
 RUN npm run build
 
 # --- Stage 2: the server ---
-FROM node:20-alpine
+FROM node:25-alpine
 
 WORKDIR /app
 
